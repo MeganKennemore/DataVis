@@ -1,0 +1,600 @@
+<html>
+<head>
+<!--Load the AJAX API-->
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script type="text/javascript">
+
+//More libraries than probably necessary
+	google.charts.load('current', {'packages':['corechart', 'controls']});
+	google.charts.load('current', {'packages':['table']});
+	google.charts.load('current', {packages:['corechart']});
+	google.charts.load('current');
+	google.charts.setOnLoadCallback(queryData);
+	
+	function queryData(){
+//Selecting all the necessary columns
+		var queryString= encodeURIComponent('Select B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R');
+		var query = new google.visualization.Query('https://docs.google.com/spreadsheets/d/1ZTkOesxgx8-9KD4A15qjr_6KR2pOLwJe88-jfFUQpKA/gviz/tq?sheet=Count&headers=2&tq=' + queryString);
+		query.send(handleQueryResponse);
+	}
+
+	function handleQueryResponse(response){
+//Error reporting
+		if(response.isError()){
+			alert('Error in query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+			return;
+		}
+		var data = response.getDataTable();
+
+//A hidden chart to use if something goes wrong and we need to check if the data is still coming in. Has a commented out div tag in the body.
+		/*var chart = new google.visualization.Table(document.getElementById('help_div'));
+		chart.draw(data, {width: '50%', height: '50%'});*/
+		
+		var dashboard = new google.visualization.Dashboard(document.getElementById('dashboard_div'));
+
+//A number range filter for the 3 line charts below. Controls the age of the dragons.		
+		var growFilter = new google.visualization.ControlWrapper({
+			controlType:'NumberRangeFilter',
+			containerId: 'grow_filter_div',
+			options:{
+				filterColumnIndex: 0,
+				minValue: 0,
+				maxValue: 14
+			},
+			state: {lowValue:0, highValue:14}
+		});
+
+//A line chart displaying body length over time of the dragons. Has Average, Male, Female.
+		var lengthChart = new google.visualization.ChartWrapper({
+			chartType:'LineChart',
+			containerId:'length_div',
+			view:{'columns':[0,3,4,5]},
+			options: {
+				hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},
+				vAxis:{title:'Body Length (m)'},
+				title: "A Growing Dragon's Body Length",
+				colors: ['#ff9900', 'blue', 'red'],
+				pointSize: 3,
+				chartArea:{
+					width: 490,
+					height: 380
+				},
+				curveType: 'function'
+			}
+		});
+		
+//A line chart displaying wingspan growth over time of the dragons. Has Average, Male, Female.
+		var wingChart = new google.visualization.ChartWrapper({
+			chartType:'LineChart',
+			containerId:'wingspan_div',
+			view:{'columns':[0,6,7,8]},
+			options: {
+				hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},
+				vAxis:{title:'Wingspan (m)'},
+				title: "A Growing Dragon's Wingspan",
+				colors: ['#ff9900', 'blue', 'red'],
+				pointSize: 3,
+				chartArea:{
+					width: 490,
+					height: 380
+				},
+				curveType: 'function'
+			}
+		});
+
+//A line chart displaying weight growth over time of the dragons. Has Average, Male, Female.
+		var weightChart = new google.visualization.ChartWrapper({
+			chartType:'LineChart',
+			containerId:'weight_div',
+			view:{'columns':[0,9,10,11]},
+			options: {
+				hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},
+				vAxis:{title:'Weight (kg)'},
+				title: "A Growing Dragon's Weight",
+				colors: ['#ff9900', 'blue', 'red'],
+				pointSize: 3,
+				chartArea:{
+					width: 490,
+					height: 380
+				},
+				curveType: 'function'
+			}
+		});
+		
+//A category filter for the scatter chart below. Controls whether males, females, or both are being displayed.
+		var scatterFilter = new google.visualization.ControlWrapper({
+			controlType:'CategoryFilter',
+			containerId:'scatter_filter_div',
+			options: {
+				filterColumnIndex: 13,
+				ui: {
+					allowNone: false,
+					allowMultiple: true,
+					label: 'Gender'
+				},
+				values: ['Male', 'Female']
+			},
+			state: {selectedValues:['Male','Female']}
+		});
+
+//A number range filter for the scatter chart below. Controls the sizes of the dragons.
+		var sizeFilter = new google.visualization.ControlWrapper({
+			controlType:'NumberRangeFilter',
+			containerId: 'num_filter_div',
+			options:{
+				filterColumnIndex: 14,
+				minValue: 1,
+				maxValue: 20
+			},
+			state: {lowValue:1, highValue:20}
+		});
+
+//A scatter chart to display the distribution of sizes among ages.
+//Has both male and female dragons but I couldn't find a way to color code them since they were in the same column but different rows.
+//You can select one or both when it runs but when together they look the same.
+		var scatterChart = new google.visualization.ChartWrapper({
+			chartType:'ScatterChart',
+			containerId:'scatter_div',
+			view:{'columns':[12,14]},
+			options: {
+				hAxis:{title:'Age by Day', gridlines:{count: -1}},
+				vAxis:{title: 'Size (m or kg)'},
+				title:'Size Distribution by Day',
+				height: 500,
+				width: 800,
+				chartArea:{
+					width: 600,
+					height: 380
+				},
+				legend: {
+					position: 'in'
+				},
+				pointSize: 3
+			}
+		});
+
+//Binding things and sending them out.
+		dashboard.bind(growFilter, [lengthChart, wingChart, weightChart]).bind([scatterFilter, sizeFilter], scatterChart);
+		dashboard.draw(data);
+
+//Three functions to change what series is being displayed on the scatter chart. Works with the select menu, id is drop
+		addLength = function(){
+			scatterChart.setView({columns:[12,14]});
+			sizeFilter.setOptions({filterColumnIndex:14, minValue:1, maxValue:20});
+			scatterChart.draw();
+			sizeFilter.draw();
+		};
+		addWingspan = function(){
+			scatterChart.setView({columns:[12,15]});
+			sizeFilter.setOptions({filterColumnIndex:15, minValue:0, maxValue:20});
+			scatterChart.draw();
+			sizeFilter.draw();
+		};
+		addWeight = function(){
+			scatterChart.setView({columns:[12,16]});
+			sizeFilter.setOptions({filterColumnIndex:16, minValue:40, maxValue:15000});
+			scatterChart.draw();
+			sizeFilter.draw();
+		};
+
+
+
+//Three functions to change the data sets on the size charts. a, m, and f work as true/false values to show what is already being displayed. Average, Male, Female.
+//Work with the three buttons.
+//This is a terrible thing and if there's a better way to do it I welcome instruction. Please. Please.
+		var a = 1;
+		var m = 1;
+		var f = 1;
+		changeAverage = function(){
+			if(a==1){
+				if(m==1){
+					if(f==1){
+						lengthChart.setView({columns:[0,4,5]});
+						wingChart.setView({columns:[0,7,8]});
+						weightChart.setView({columns:[0,10,11]});
+						lengthChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Body Length (m)'},title: "A Growing Dragon's Body Length",colors: ['blue', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						wingChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Wingspan (m)'},title: "A Growing Dragon's Wingspan",colors: ['blue', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						weightChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Weight (kg)'},title: "A Growing Dragon's Weight",colors: ['blue', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						a=0;
+						lengthChart.draw();
+						wingChart.draw();
+						weightChart.draw();
+					}else{
+						lengthChart.setView({columns:[0,4]});
+						wingChart.setView({columns:[0,7]});
+						weightChart.setView({columns:[0,10]});
+						lengthChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Body Length (m)'},title: "A Growing Dragon's Body Length",colors: ['blue'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						wingChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Wingspan (m)'},title: "A Growing Dragon's Wingspan",colors: ['blue'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						weightChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Weight (kg)'},title: "A Growing Dragon's Weight",colors: ['blue'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						a=0;
+						lengthChart.draw();
+						wingChart.draw();
+						weightChart.draw();
+					}
+				}else{
+					if(f==1){
+						lengthChart.setView({columns:[0,5]});
+						wingChart.setView({columns:[0,8]});
+						weightChart.setView({columns:[0,11]});
+						lengthChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Body Length (m)'},title: "A Growing Dragon's Body Length",colors: ['red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						wingChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Wingspan (m)'},title: "A Growing Dragon's Wingspan",colors: ['red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						weightChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Weight (kg)'},title: "A Growing Dragon's Weight",colors: ['red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						a=0;
+						lengthChart.draw();
+						wingChart.draw();
+						weightChart.draw();
+					}else{
+						alert('Not allowed! You need at least one series!');
+					}
+				}
+			}else{
+				if(m==1){
+					if(f==1){
+						lengthChart.setView({columns:[0,3,4,5]});
+						wingChart.setView({columns:[0,6,7,8]});
+						weightChart.setView({columns:[0,9,10,11]});
+						lengthChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Body Length (m)'},title: "A Growing Dragon's Body Length",colors: ['#ff9900', 'blue', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						wingChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Wingspan (m)'},title: "A Growing Dragon's Wingspan",colors: ['#ff9900','blue', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						weightChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Weight (kg)'},title: "A Growing Dragon's Weight",colors: ['#ff9900', 'blue', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						a=1;
+						lengthChart.draw();
+						wingChart.draw();
+						weightChart.draw();
+					}else{
+						lengthChart.setView({columns:[0,3,4]});
+						wingChart.setView({columns:[0,6,7]});
+						weightChart.setView({columns:[0,9,10]});
+						lengthChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Body Length (m)'},title: "A Growing Dragon's Body Length",colors: ['#ff9900', 'blue'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						wingChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Wingspan (m)'},title: "A Growing Dragon's Wingspan",colors: ['#ff9900','blue'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						weightChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Weight (kg)'},title: "A Growing Dragon's Weight",colors: ['#ff9900', 'blue'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						a=1;
+						lengthChart.draw();
+						wingChart.draw();
+						weightChart.draw();
+					}
+				}else{
+					if(f==1){
+						lengthChart.setView({columns:[0,3,5]});
+						wingChart.setView({columns:[0,6,8]});
+						weightChart.setView({columns:[0,9,11]});
+						lengthChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Body Length (m)'},title: "A Growing Dragon's Body Length",colors: ['#ff9900', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						wingChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Wingspan (m)'},title: "A Growing Dragon's Wingspan",colors: ['#ff9900', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						weightChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Weight (kg)'},title: "A Growing Dragon's Weight",colors: ['#ff9900', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						a=1;
+						lengthChart.draw();
+						wingChart.draw();
+						weightChart.draw();
+					}else{
+						lengthChart.setView({columns:[0,3]});
+						wingChart.setView({columns:[0,6]});
+						weightChart.setView({columns:[0,9]});
+						lengthChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Body Length (m)'},title: "A Growing Dragon's Body Length",colors: ['#ff9900'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						wingChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Wingspan (m)'},title: "A Growing Dragon's Wingspan",colors: ['#ff9900'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						weightChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Weight (kg)'},title: "A Growing Dragon's Weight",colors: ['#ff9900'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						a=1;
+						lengthChart.draw();
+						wingChart.draw();
+						weightChart.draw();
+					}
+				}
+			}				
+		};
+		
+		changeMales = function(){
+			if(m==1){
+				if(a==1){
+					if(f==1){
+						lengthChart.setView({columns:[0,3,5]});
+						wingChart.setView({columns:[0,6,8]});
+						weightChart.setView({columns:[0,9,11]});
+						lengthChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Body Length (m)'},title: "A Growing Dragon's Body Length",colors: ['#ff9900', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						wingChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Wingspan (m)'},title: "A Growing Dragon's Wingspan",colors: ['#ff9900', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						weightChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Weight (kg)'},title: "A Growing Dragon's Weight",colors: ['#ff9900', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						m=0;
+						lengthChart.draw();
+						wingChart.draw();
+						weightChart.draw();
+					}else{
+						lengthChart.setView({columns:[0,3]});
+						wingChart.setView({columns:[0,6]});
+						weightChart.setView({columns:[0,9]});
+						lengthChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Body Length (m)'},title: "A Growing Dragon's Body Length",colors: ['#ff9900'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						wingChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Wingspan (m)'},title: "A Growing Dragon's Wingspan",colors: ['#ff9900'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						weightChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Weight (kg)'},title: "A Growing Dragon's Weight",colors: ['#ff9900'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						m=0;
+						lengthChart.draw();
+						wingChart.draw();
+						weightChart.draw();
+					}
+				}else{
+					if(f==1){
+						lengthChart.setView({columns:[0,5]});
+						wingChart.setView({columns:[0,8]});
+						weightChart.setView({columns:[0,11]});
+						lengthChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Body Length (m)'},title: "A Growing Dragon's Body Length",colors: ['red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						wingChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Wingspan (m)'},title: "A Growing Dragon's Wingspan",colors: ['red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						weightChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Weight (kg)'},title: "A Growing Dragon's Weight",colors: ['red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						m=0;
+						lengthChart.draw();
+						wingChart.draw();
+						weightChart.draw();
+					}else{
+						alert('Not allowed! You need at least one series!');
+					}
+				}
+			}else{
+				if(a==1){
+					if(f==1){
+						lengthChart.setView({columns:[0,3,4,5]});
+						wingChart.setView({columns:[0,6,7,8]});
+						weightChart.setView({columns:[0,9,10,11]});
+						lengthChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Body Length (m)'},title: "A Growing Dragon's Body Length",colors: ['#ff9900', 'blue', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						wingChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Wingspan (m)'},title: "A Growing Dragon's Wingspan",colors: ['#ff9900','blue', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						weightChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Weight (kg)'},title: "A Growing Dragon's Weight",colors: ['#ff9900', 'blue', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						m=1;
+						lengthChart.draw();
+						wingChart.draw();
+						weightChart.draw();
+					}else{
+						lengthChart.setView({columns:[0,3,4]});
+						wingChart.setView({columns:[0,6,7]});
+						weightChart.setView({columns:[0,9,10]});
+						lengthChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Body Length (m)'},title: "A Growing Dragon's Body Length",colors: ['#ff9900', 'blue'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						wingChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Wingspan (m)'},title: "A Growing Dragon's Wingspan",colors: ['#ff9900','blue'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						weightChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Weight (kg)'},title: "A Growing Dragon's Weight",colors: ['#ff9900', 'blue'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						m=1;
+						lengthChart.draw();
+						wingChart.draw();
+						weightChart.draw();
+					}
+				}else{
+					if(f==1){
+						lengthChart.setView({columns:[0,4,5]});
+						wingChart.setView({columns:[0,7,8]});
+						weightChart.setView({columns:[0,10,11]});
+						lengthChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Body Length (m)'},title: "A Growing Dragon's Body Length",colors: ['blue', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						wingChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Wingspan (m)'},title: "A Growing Dragon's Wingspan",colors: ['blue', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						weightChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Weight (kg)'},title: "A Growing Dragon's Weight",colors: ['blue', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						m=1;
+						lengthChart.draw();
+						wingChart.draw();
+						weightChart.draw();
+					}else{
+						lengthChart.setView({columns:[0,4]});
+						wingChart.setView({columns:[0,7]});
+						weightChart.setView({columns:[0,10]});
+						lengthChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Body Length (m)'},title: "A Growing Dragon's Body Length",colors: ['blue'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						wingChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Wingspan (m)'},title: "A Growing Dragon's Wingspan",colors: ['blue'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						weightChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Weight (kg)'},title: "A Growing Dragon's Weight",colors: ['blue'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						m=1;
+						lengthChart.draw();
+						wingChart.draw();
+						weightChart.draw();
+					}
+				}
+			}				
+		};
+
+		changeFemales = function(){
+			if(f==1){
+				if(a==1){
+					if(m==1){
+						lengthChart.setView({columns:[0,3,4]});
+						wingChart.setView({columns:[0,6,7]});
+						weightChart.setView({columns:[0,9,10]});
+						lengthChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Body Length (m)'},title: "A Growing Dragon's Body Length",colors: ['#ff9900', 'blue'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						wingChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Wingspan (m)'},title: "A Growing Dragon's Wingspan",colors: ['#ff9900','blue'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						weightChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Weight (kg)'},title: "A Growing Dragon's Weight",colors: ['#ff9900', 'blue'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						f=0;
+						lengthChart.draw();
+						wingChart.draw();
+						weightChart.draw();
+					}else{
+						lengthChart.setView({columns:[0,3]});
+						wingChart.setView({columns:[0,6]});
+						weightChart.setView({columns:[0,9]});
+						lengthChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Body Length (m)'},title: "A Growing Dragon's Body Length",colors: ['#ff9900'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						wingChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Wingspan (m)'},title: "A Growing Dragon's Wingspan",colors: ['#ff9900'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						weightChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Weight (kg)'},title: "A Growing Dragon's Weight",colors: ['#ff9900'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						f=0;
+						lengthChart.draw();
+						wingChart.draw();
+						weightChart.draw();
+					}
+				}else{
+					if(m==1){
+						lengthChart.setView({columns:[0,4]});
+						wingChart.setView({columns:[0,7]});
+						weightChart.setView({columns:[0,10]});
+						lengthChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Body Length (m)'},title: "A Growing Dragon's Body Length",colors: ['blue'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						wingChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Wingspan (m)'},title: "A Growing Dragon's Wingspan",colors: ['blue'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						weightChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Weight (kg)'},title: "A Growing Dragon's Weight",colors: ['blue'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						f=0;
+						lengthChart.draw();
+						wingChart.draw();
+						weightChart.draw();
+					}else{
+						alert('Not allowed! You need at least one series!');
+					}
+				}
+			}else{
+				if(a==1){
+					if(m==1){
+						lengthChart.setView({columns:[0,3,4,5]});
+						wingChart.setView({columns:[0,6,7,8]});
+						weightChart.setView({columns:[0,9,10,11]});
+						lengthChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Body Length (m)'},title: "A Growing Dragon's Body Length",colors: ['#ff9900', 'blue', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						wingChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Wingspan (m)'},title: "A Growing Dragon's Wingspan",colors: ['#ff9900','blue', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						weightChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Weight (kg)'},title: "A Growing Dragon's Weight",colors: ['#ff9900', 'blue', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						f=1;
+						lengthChart.draw();
+						wingChart.draw();
+						weightChart.draw();
+					}else{
+						lengthChart.setView({columns:[0,3,5]});
+						wingChart.setView({columns:[0,6,8]});
+						weightChart.setView({columns:[0,9,11]});
+						lengthChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Body Length (m)'},title: "A Growing Dragon's Body Length",colors: ['#ff9900', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						wingChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Wingspan (m)'},title: "A Growing Dragon's Wingspan",colors: ['#ff9900', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						weightChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Weight (kg)'},title: "A Growing Dragon's Weight",colors: ['#ff9900', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						f=1;
+						lengthChart.draw();
+						wingChart.draw();
+						weightChart.draw();
+					}
+				}else{
+					if(m==1){
+						lengthChart.setView({columns:[0,4,5]});
+						wingChart.setView({columns:[0,7,8]});
+						weightChart.setView({columns:[0,10,11]});
+						lengthChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Body Length (m)'},title: "A Growing Dragon's Body Length",colors: ['blue', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						wingChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Wingspan (m)'},title: "A Growing Dragon's Wingspan",colors: ['blue', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						weightChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Weight (kg)'},title: "A Growing Dragon's Weight",colors: ['blue', 'red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						f=1;
+						lengthChart.draw();
+						wingChart.draw();
+						weightChart.draw();
+					}else{
+						lengthChart.setView({columns:[0,5]});
+						wingChart.setView({columns:[0,8]});
+						weightChart.setView({columns:[0,11]});
+						lengthChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Body Length (m)'},title: "A Growing Dragon's Body Length",colors: ['red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						wingChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Wingspan (m)'},title: "A Growing Dragon's Wingspan",colors: ['red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						weightChart.setOptions({hAxis:{title:'Age by Day', format: 'decimal', gridlines:{count: -1}},vAxis:{title:'Weight (kg)'},title: "A Growing Dragon's Weight",colors: ['red'],pointSize: 3,chartArea:{width: 490,height: 380},curveType: 'function'});
+						f=1;
+						lengthChart.draw();
+						wingChart.draw();
+						weightChart.draw();
+					}
+				}
+			}				
+		};
+	}
+		
+</script>
+<style>
+	body{
+		padding: 15px;
+		background-color: #F4FDF9;
+		font-family: "Trebuchet MS", Helvetica, sans-serif;
+	}
+	p.inOut{
+		text-align: center;
+		font-style: normal;
+		font-size: 20px;
+	}
+	#length_div, #wingspan_div, #weight_div{
+		height:500px;
+		width:700px;
+		display: inline-block;
+		margin: 10px;
+	}
+	#scatter_div{
+		width: 800px;
+		height: 500px;
+		display: inline-block;
+		margin: 10px;
+		float: right;
+	}
+
+/*Makes things have shadows on them when you hover over them*/
+	#length_div:hover, #wingspan_div:hover, #weight_div:hover, #scatter_div:hover, button:hover{
+		box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+	}
+	#grow_filter_div, #num_filter_div, #scatter_filter_div{
+		display: block;
+		margin-left: auto;
+		margin-right: auto;
+		margin-top: 30px;
+		margin-bottom: 30px;
+		width:400px;
+		height: 60px;
+	}
+	p {
+		margin: 20px;
+		font-style: italic;
+	}
+	table{
+		margin: auto;
+		width: 100%;
+	}
+	select{
+		margin-top: 15px;
+		margin-bottom: 15px;
+		margin-left: auto;
+		margin-right: auto;
+		width: 400px;
+		height: 60px;
+		display: block;
+		text-align: center;
+		font-size: 15px;
+		color: white;
+		border: none;
+		background-color: #499e79;
+	}
+	button{
+		height: 50px;
+		width: 90px;
+		background-color: #499e79;
+		color: white;
+		border: none;
+		font-size: 15px;
+		text-align: center;
+		margin-left: auto;
+		margin-right:auto;
+		margin-top: 10px;
+		margin-bottom:10px;
+		display:block;	
+	}
+</style>	
+</head>
+<body>
+	<div id="dashboard_div">
+		<p class="inOut">How fast do baby dragons grow? Let's find out!</p>
+		
+	<!--A hidden div to use for testing to see if data is coming in-->
+		<!--<div id="help_div"></div>-->
+		<table>
+			<tr>
+				<td><div id="length_div"></div></td>
+				<td><div id="wingspan_div"></div></td>
+			</tr>
+			<tr>
+				<td><div id="weight_div"></div></td>
+				<td>
+					<p>Control their ages!</p>
+				<!--A number filter that changes the ages displayed-->
+					<div id="grow_filter_div"></div>
+
+					<p>Change the data series!</p>
+				<!--These buttons will change which data series are displayed-->
+					<button onclick="changeAverage();">Average</button>
+					<button onclick="changeMales();">Males</button>
+					<button onclick="changeFemales();">Females</button>
+				</td>
+			</tr>
+		</table>
+		<table>
+			<tr>
+				<td style="width:600px;">
+					<p>Change the scatter chart's data!</p>
+				<!--A category filter that changes if both male and female dragons are displayed-->
+					<div id="scatter_filter_div"></div>
+					<div id="num_filter_div"></div>
+				<!--Selecting one of these will change the coloumn, showing the distribution of another size category-->
+					<select id="drop">
+						<option onclick="addLength();">Length</option>
+						<option onclick="addWingspan();">Wingspan</option>
+						<option onclick="addWeight();">Weight</option>
+					</select>
+				</td>
+				<td>
+					<div id="scatter_div"></div>
+				</td>
+
+			</tr>
+		</table>
+		<p class="inOut">Data surveyed from the game <i>Flight Rising</i> by players for the player-run project 'Hatchling Sizes' and used with permission.</p>
+	</div>
+</body>
+</html>
